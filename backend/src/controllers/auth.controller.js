@@ -58,18 +58,8 @@ const loginController = async (req, res) => {
 };
 
 const authmeController = async (req, res) => {
-	const token = req.cookies.token;
-	if (!token) {
-		return res.status(401).json({ message: "Unauthorized" });
-	}
-	const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-	const user = await User.findById(decoded.id);
-	if (!user) {
-		return res.status(404).json({ message: "User not found" });
-	}
-
-	res.status(200).json({
+	const user = req.user;
+	return res.status(200).json({
 		user,
 		message: "User authenticated successfully",
 	});
@@ -86,9 +76,77 @@ const logoutController = async (req, res) => {
 		.json({ message: "Logged out successfully" });
 };
 
+
+const getUserAddressesController = async (req, res) => {
+	const id = req.user._id;
+	const user = await User.findById(id).select("address");
+	if (!user) {
+        return res.status(404).json({ message: "User not found" });
+    }
+	return res.status(200).json({ address: user.address });
+};
+
+const addUserAddressesController = async (req, res) => {
+	const id = req.user._id;
+	const { street, city, state, country, zip, isDefault } = req.body;
+
+	const user = await User.findOneAndUpdate(
+		{ _id: id },
+		{
+			$push: {
+				address: { street, city, state, country, zip, isDefault },
+			},
+		},
+		{ new: true }
+	);
+
+	if (!user) {
+		return res.status(404).json({ message: "User not found" });
+	}
+	return res
+		.status(200)
+		.json({
+			message: "Address added successfully",
+			address: user.address,
+		});
+};
+
+const deleteUserAddressesController = async (req, res) => {
+	const id = req.user._id;
+	const { addressid } = req.params;
+	const addressExist = await User.findOne({
+		"_id": id,
+		"address._id": addressid,
+	});
+	if (!addressExist) {
+		return res.status(404).json({ message: "Address not found" });
+	}
+	const user = await User.findOneAndUpdate(
+		{ _id: id },
+		{
+			$pull: {
+				address: { _id: addressid },
+			},
+		},
+		{ new: true }
+	);
+	if (!user) {
+		return res.status(404).json({ message: "User not found" });
+	}
+
+	return res
+		.status(200)
+		.json({
+			message: "Address deleted successfully",
+			address: user.address,
+		});
+};
 module.exports = {
 	registerController,
 	loginController,
 	authmeController,
 	logoutController,
+	getUserAddressesController,
+	deleteUserAddressesController,
+	addUserAddressesController,
 };
