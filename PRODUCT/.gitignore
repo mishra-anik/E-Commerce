@@ -1,0 +1,6 @@
+# Ignore node modules
+node_modules/
+# Ignore environment files
+.env
+# Ignore test folder
+src/test/
