@@ -9,7 +9,7 @@ const {
 const multer = require("multer");
 const upload = multer({
     storage: multer.memoryStorage()
-}); // 5MB limit
+}); 
 
 const route = Router();
 

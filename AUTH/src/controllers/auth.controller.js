@@ -2,6 +2,8 @@ const User = require("../models/user.model");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const redis = require("../db/redis");
+
+
 const registerController = async (req, res) => {
 	const { username, email, password } = req.body;
 
@@ -37,6 +39,7 @@ const registerController = async (req, res) => {
 	});
 };
 
+
 const loginController = async (req, res) => {
 	const { email, password } = req.body;
 
@@ -57,6 +60,7 @@ const loginController = async (req, res) => {
 	res.status(200).json({ message: "User logged in successfully", user });
 };
 
+
 const authmeController = async (req, res) => {
 	const user = req.user;
 	return res.status(200).json({
@@ -64,6 +68,7 @@ const authmeController = async (req, res) => {
 		message: "User authenticated successfully",
 	});
 };
+
 
 const logoutController = async (req, res) => {
 	const token = req.cookies.token;
@@ -76,6 +81,7 @@ const logoutController = async (req, res) => {
 		.json({ message: "Logged out successfully" });
 };
 
+
 const getUserAddressesController = async (req, res) => {
 	const id = req.user._id;
 	const user = await User.findById(id).select("address");
@@ -84,6 +90,7 @@ const getUserAddressesController = async (req, res) => {
 	}
 	return res.status(200).json({ address: user.address });
 };
+
 
 const addUserAddressesController = async (req, res) => {
 	const id = req.user._id;
@@ -107,6 +114,7 @@ const addUserAddressesController = async (req, res) => {
 		address: user.address,
 	});
 };
+
 
 const deleteUserAddressesController = async (req, res) => {
 	const id = req.user._id;
@@ -136,6 +144,8 @@ const deleteUserAddressesController = async (req, res) => {
 		address: user.address,
 	});
 };
+
+
 module.exports = {
 	registerController,
 	loginController,
