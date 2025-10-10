@@ -3,7 +3,6 @@ const router = Router();
 const cart = require("../controller/cart.controller");
 const authUser = require("../middelware/authUser.midelware");
 const { validAddItemToCart } = require("../middelware/cart.validation");
-const { validAddItemToCart } = require("../middelware/cart.validation");
 
 router.get("/", authUser(["user"]), cart.getCart);
 
