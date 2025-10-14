@@ -12,13 +12,21 @@ const validOrder = [
 	body("shippingAddress")
 		.notEmpty()
 		.withMessage("Shipping address is required"),
-	body("shippingAddress.street").notEmpty().withMessage("Street is required"),
-	body("shippingAddress.city").notEmpty().withMessage("City is required"),
-	body("shippingAddress.state").notEmpty().withMessage("State is required"),
+	body("shippingAddress.street")
+        .notEmpty()
+        .withMessage("Street is required"),
+	body("shippingAddress.city")
+	    .notEmpty()
+        .withMessage("City is required"),
+	body("shippingAddress.state")
+		.notEmpty
+		.withMessage("State is required"),
 	body("shippingAddress.country")
 		.notEmpty()
 		.withMessage("Country is required"),
-	body("shippingAddress.zip").notEmpty().withMessage("Zip code is required"),
+	body("shippingAddress.zip")
+	    .notEmpty()
+	    .withMessage("Zip code is required"),
 	validateRequest,
 ];
 
