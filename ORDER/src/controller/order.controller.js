@@ -11,33 +11,30 @@ const createOrder = async (req, res) => {
 		const cartResponse = await axios.get(
 			`http://localhost:3002/api/cart/`,
 			{
-				headers: {
-					Authorization: `Bearer ${token}`,
-				},
+				headers: { Authorization: `Bearer ${token}` },
 			}
 		);
 
-		const products = await Promise.all(
-			cartResponse.data.Cart.products.map(async (item) => {
-				const productResponse = await axios.get(
-					`http://localhost:3002/api/products/${item.productId}`,
-					{
-						headers: {
-							Authorization: `Bearer ${token}`,
-						},
-					}
-				);
-				return {
-					product: productResponse.data,
-					quantity: item.quantity, // Corrected to use item.quantity
-				};
+		// Handle empty cart
+		const cartItems = cartResponse.data.cart.items;
+		if (!cartItems || cartItems.length === 0) {
+			return res.status(400).json({ message: "Cart is empty" });
+		}
+
+		const productPromises = cartItems.map((item) =>
+			axios.get(`http://localhost:3002/api/products/${item.productId}`, {
+				headers: { Authorization: `Bearer ${token}` },
 			})
 		);
 
+		const productResponses = await Promise.all(productPromises);
+
 		let totalprice = 0;
 
-		const orderProducts = products.map((item) => {
-			const { product, quantity } = item;
+		const orderProducts = productResponses.map((response, index) => {
+			const product = response.data;
+			const quantity = cartItems[index].quantity;
+
 			if (product.stock < quantity) {
 				throw new Error(`Product ${product.title} is out of stock`);
 			}
@@ -58,24 +55,110 @@ const createOrder = async (req, res) => {
 		const order = await Order.create({
 			user: user.id,
 			products: orderProducts,
-			totalAmount: {price:totalprice , currency: orderProducts[0]?.price.currency || "INR"}, // Corrected to use totalprice
-			status: "pending",
-			shippingAddress: {
-				street: req.body.shippingAddress.street,
-				city: req.body.shippingAddress.city,
-				state: req.body.shippingAddress.state,
-				country: req.body.shippingAddress.country,
-				zip: req.body.shippingAddress.zip,
+			totalAmount: {
+				price: totalprice,
+				currency: orderProducts[0]?.price.currency || "INR",
 			},
+			status: "pending",
+			shippingAddress: req.body.shippingAddress,
 		});
 
 		return res
 			.status(201)
 			.json({ message: "Order placed successfully", order });
 	} catch (err) {
-		console.error(err); // Added logging for debugging
+		console.error("Order creation failed:", err.message);
+		if (err.response && err.response.status === 401) {
+			return res.status(401).json({ message: "Unauthorized" });
+		}
 		return res.status(500).json({ message: err.message });
 	}
 };
 
-module.exports = { createOrder };
+const getMyOrders = async (req, res) => {
+	const user = req.user;
+	const page = parseInt(req.query.page) || 1;
+	const limit = parseInt(req.query.limit) || 10;
+	const skip = (page - 1) * limit;
+
+	try {
+		const orders = await Order.find({ user: user.id })
+			.skip(skip)
+			.limit(limit)
+			.sort({ createdAt: -1 });
+		const totalOrders = await Order.countDocuments({ user: user.id });
+
+		return res.status(200).json({
+			orders,
+			meta: {
+				totalOrders,
+				totalPages: Math.ceil(totalOrders / limit),
+				currentPage: page,
+			},
+		});
+	} catch (err) {
+		return res.status(500).json({ message: err.message });
+	}
+};
+
+const getOrderById = async (req, res)=>{
+	const user = req.user;
+	const orderId = req.params.id;
+
+	try{
+		const order = await Order.findOne({_id: orderId});
+		if(!order){
+			return res.status(404).json({message: "Order not found"});
+		}
+		return res.status(200).json({order});
+	}catch(err){
+		return res.status(500).json({message: err.message});
+	}
+}
+
+const cancelOrderById = async (req, res)=>{
+	const user = req.user;
+	const orderId = req.params.id;
+	try{
+		const order = await Order.findOne({_id: orderId})
+		if(!order){
+			return res.status(404).json({message: "Order not found"});
+		}
+		if(order.status != "PENDING"){
+			return res.status(400).json({message: "Only pending orders can be cancelled"});
+		}
+
+		order.status = "CANCELLED";
+		await order.save();
+		return res.status(200).json({message: "Order cancelled successfully", order});	
+
+	}catch(err){
+		return res.status(500).json({message: err.message});
+	}
+}
+
+
+const updateOrderAddressById = async (req, res)=>{
+	const user = req.user;
+
+	const orderId = req.params.id;
+	const newAddress = req.body.shippingAddress;
+	try{
+		const order = await Order.findOne({_id: orderId , user: user.id});
+		if(!order){
+			return res.status(404).json({message: "Order not found"});
+		}
+		if(order.status === "SHIPPED" || order.status === "DELIVERED"){
+			return res.status(400).json({message: "Only shipped or delivered orders address can be updated"});
+		}
+		order.shippingAddress = newAddress;
+		await order.save();
+		return res.status(200).json({message: "Order address updated successfully", order});
+	}catch(err){
+		return res.status(500).json({message: err.message});
+	}
+}
+
+
+
+module.exports = { createOrder , getMyOrders , getOrderById, cancelOrderById, updateOrderAddressById};
